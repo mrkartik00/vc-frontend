@@ -11,28 +11,32 @@ class PeerService {
           },
         ],
       });
+
+      // Add transceivers explicitly to control SDP order
+      this.peer.addTransceiver("audio", { direction: "sendrecv" });
+      this.peer.addTransceiver("video", { direction: "sendrecv" });
     }
   }
 
   async getAnswer(offer) {
     if (this.peer) {
-      await this.peer.setRemoteDescription(offer);
-      const ans = await this.peer.createAnswer();
-      await this.peer.setLocalDescription(new RTCSessionDescription(ans));
+      await this.peer.setRemoteDescription(offer); // Set the incoming offer
+      const ans = await this.peer.createAnswer(); // Generate the answer
+      await this.peer.setLocalDescription(ans); // Set the local description
       return ans;
     }
   }
 
   async setLocalDescription(ans) {
     if (this.peer) {
-      await this.peer.setRemoteDescription(new RTCSessionDescription(ans));
+      await this.peer.setRemoteDescription(new RTCSessionDescription(ans)); // Set remote SDP
     }
   }
 
   async getOffer() {
     if (this.peer) {
-      const offer = await this.peer.createOffer();
-      await this.peer.setLocalDescription(new RTCSessionDescription(offer));
+      const offer = await this.peer.createOffer(); // Create an offer
+      await this.peer.setLocalDescription(offer); // Set the local description
       return offer;
     }
   }
