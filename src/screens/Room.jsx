@@ -9,6 +9,14 @@ const RoomPage = () => {
   const [myStream, setMyStream] = useState();
   const [remoteStream, setRemoteStream] = useState();
 
+  // Predefined transceivers for consistent SDP order
+  useEffect(() => {
+    if (peer.peer) {
+      peer.peer.addTransceiver("audio", { direction: "sendrecv" });
+      peer.peer.addTransceiver("video", { direction: "sendrecv" });
+    }
+  }, []);
+
   const handleUserJoined = useCallback(({ email, id }) => {
     console.log(`Email ${email} joined room`);
     setRemoteSocketId(id);
@@ -20,11 +28,15 @@ const RoomPage = () => {
       video: true,
     });
     stream.getTracks().forEach((track) => {
-      peer.peer.addTrack(track, stream); // Add tracks to peer connection
+      const sender = peer.peer.getSenders().find((s) => s.track?.kind === track.kind);
+      if (sender) {
+        sender.replaceTrack(track); // Replace track for existing sender
+      }
     });
+    setMyStream(stream);
+
     const offer = await peer.getOffer();
     socket.emit("user:call", { to: remoteSocketId, offer });
-    setMyStream(stream);
   }, [remoteSocketId, socket]);
 
   const handleIncommingCall = useCallback(
@@ -35,10 +47,13 @@ const RoomPage = () => {
         video: true,
       });
       stream.getTracks().forEach((track) => {
-        peer.peer.addTrack(track, stream); // Add tracks to peer connection
+        const sender = peer.peer.getSenders().find((s) => s.track?.kind === track.kind);
+        if (sender) {
+          sender.replaceTrack(track); // Replace track for existing sender
+        }
       });
       setMyStream(stream);
-      console.log(`Incoming Call from ${from}`);
+
       const ans = await peer.getAnswer(offer);
       socket.emit("call:accepted", { to: from, ans });
     },
@@ -75,7 +90,6 @@ const RoomPage = () => {
 
     peer.peer.addEventListener("track", (event) => {
       const [stream] = event.streams;
-      console.log("Received remote stream");
       setRemoteStream(stream);
     });
 
@@ -129,7 +143,6 @@ const RoomPage = () => {
           <h2>Remote Stream</h2>
           <ReactPlayer
             playing
-            muted
             height="200px"
             width="300px"
             url={remoteStream}
